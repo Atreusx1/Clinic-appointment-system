@@ -1,0 +1,56 @@
+.container {
+  @apply max-w-4xl mx-auto bg-white p-6 rounded shadow;
+}
+
+.title {
+  @apply text-2xl font-bold mb-4 text-center;
+}
+
+.subtitle {
+  @apply text-xl font-semibold mt-6 mb-4;
+}
+
+.analytics {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-4 mb-6;
+}
+
+.card {
+  @apply bg-gray-100 p-4 rounded text-center;
+}
+
+.card h3 {
+  @apply font-semibold mb-2;
+}
+
+.card p {
+  @apply text-2xl;
+}
+
+.table {
+  @apply w-full border-collapse;
+}
+
+.table th,
+.table td {
+  @apply border p-2 text-left;
+}
+
+.table th {
+  @apply bg-gray-100 font-semibold;
+}
+
+.approve {
+  @apply bg-green-500 text-white p-2 rounded hover:bg-green-600;
+}
+
+.loading {
+  @apply text-center text-lg;
+}
+
+.error {
+  @apply text-red-500 text-center;
+}
+
+.empty {
+  @apply text-center text-lg;
+}

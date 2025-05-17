@@ -1,0 +1,19 @@
+.home {
+  @apply text-center py-12;
+}
+
+.title {
+  @apply text-4xl font-bold mb-4;
+}
+
+.description {
+  @apply text-lg mb-8;
+}
+
+.cta {
+  @apply flex justify-center space-x-4;
+}
+
+.button {
+  @apply bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700;
+}

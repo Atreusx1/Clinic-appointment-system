@@ -1,0 +1,626 @@
+openapi: 3.0.3
+info:
+  title: Doctor Appointment Booking API
+  description: |
+    API for a Doctor Appointment Booking Software that allows doctors to manage appointments, patients to book appointments with OTP verification, and admins to approve doctors and view analytics. The API uses cookie-based JWT authentication and MongoDB for session storage. Email notifications are sent via Nodemailer for OTP and appointment confirmations.
+  version: 1.0.0
+  contact:
+    email: support@doctor-appointment.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT token stored in a cookie for authenticated requests (doctors and admins).
+
+  schemas:
+    Doctor:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 682823d9be0320e447bf7990
+        name:
+          type: string
+          example: Dr. John Doe
+        email:
+          type: string
+          example: john.doe@example.com
+        clinicDetails:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Doe Clinic
+            location:
+              type: string
+              example: 123 Main St, City
+            workingHours:
+              type: string
+              example: 9 AM - 5 PM
+            fees:
+              type: number
+              example: 100
+        subscriptionPlan:
+          type: string
+          enum: [basic, premium]
+          example: premium
+        isApproved:
+          type: boolean
+          example: true
+        role:
+          type: string
+          enum: [doctor, superadmin]
+          example: doctor
+        appointmentSlots:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date-time
+                example: 2025-05-20T00:00:00.000Z
+              time:
+                type: string
+                example: 10:00 AM
+              isBooked:
+                type: boolean
+                example: false
+              patientId:
+                type: string
+                example: 682823d9be0320e447bf7991
+      required: [name, email, subscriptionPlan, isApproved, role]
+
+    Patient:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 682823d9be0320e447bf7991
+        name:
+          type: string
+          example: Jane Smith
+        email:
+          type: string
+          example: jane.smith@example.com
+        appointments:
+          type: array
+          items:
+            type: string
+            example: 682823d9be0320e447bf7992
+      required: [name, email]
+
+    Appointment:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 682823d9be0320e447bf7992
+        doctorId:
+          type: string
+          example: 682823d9be0320e447bf7990
+        patientId:
+          type: string
+          example: 682823d9be0320e447bf7991
+        date:
+          type: string
+          format: date-time
+          example: 2025-05-20T00:00:00.000Z
+        time:
+          type: string
+          example: 10:00 AM
+        tokenNumber:
+          type: number
+          example: 1234
+        status:
+          type: string
+          enum: [confirmed, cancelled, missed]
+          example: confirmed
+      required: [doctorId, patientId, date, time, tokenNumber, status]
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        error:
+          type: string
+      required: [message]
+
+    DoctorRegistrationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Dr. John Doe
+        email:
+          type: string
+          example: john.doe@example.com
+        password:
+          type: string
+          example: securepassword123
+        subscriptionPlan:
+          type: string
+          enum: [basic, premium]
+          example: premium
+      required: [name, email, password, subscriptionPlan]
+
+    DoctorLoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: john.doe@example.com
+        password:
+          type: string
+          example: securepassword123
+      required: [email, password]
+
+    DoctorSetupRequest:
+      type: object
+      properties:
+        clinicDetails:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Doe Clinic
+            location:
+              type: string
+              example: 123 Main St, City
+            workingHours:
+              type: string
+              example: 9 AM - 5 PM
+            fees:
+              type: number
+              example: 100
+          required: [name, location, workingHours, fees]
+        appointmentSlots:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date-time
+                example: 2025-05-20T00:00:00.000Z
+              time:
+                type: string
+                example: 10:00 AM
+              isBooked:
+                type: boolean
+                example: false
+            required: [date, time, isBooked]
+      required: [clinicDetails, appointmentSlots]
+
+    BookAppointmentRequest:
+      type: object
+      properties:
+        doctorId:
+          type: string
+          example: 682823d9be0320e447bf7990
+        date:
+          type: string
+          format: date-time
+          example: 2025-05-20T00:00:00.000Z
+        time:
+          type: string
+          example: 10:00 AM
+        name:
+          type: string
+          example: Jane Smith
+        email:
+          type: string
+          example: jane.smith@example.com
+      required: [doctorId, date, time, name, email]
+
+    VerifyOTPRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: jane.smith@example.com
+        otp:
+          type: string
+          example: 123456
+      required: [email, otp]
+
+    UpdateAppointmentStatusRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [confirmed, cancelled, missed]
+          example: missed
+      required: [status]
+
+    AnalyticsResponse:
+      type: object
+      properties:
+        totalDoctors:
+          type: number
+          example: 10
+        totalAppointments:
+          type: number
+          example: 50
+        activeSubscriptions:
+          type: number
+          example: 8
+
+paths:
+  /api/doctor/register:
+    post:
+      summary: Register a new doctor
+      description: Registers a new doctor, awaiting admin approval. The doctor cannot log in until approved.
+      tags: [Doctor]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorRegistrationRequest'
+      responses:
+        '201':
+          description: Doctor registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Doctor registered, awaiting approval
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/doctor/login:
+    post:
+      summary: Log in a doctor or admin
+      description: Authenticates a doctor or admin and sets a JWT token in a cookie. Doctors must be approved.
+      tags: [Doctor]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  doctorId:
+                    type: string
+                    example: 682823d9be0320e447bf7990
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...; HttpOnly
+              description: JWT token set in a cookie
+        '401':
+          description: Invalid credentials or not approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/doctor/setup:
+    post:
+      summary: Set up doctor clinic details and appointment slots
+      description: Allows a logged-in doctor to set up their clinic details and available appointment slots.
+      tags: [Doctor]
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DoctorSetupRequest'
+      responses:
+        '200':
+          description: Clinic setup complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Clinic setup complete
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/doctor/appointments:
+    get:
+      summary: Get all appointments for the logged-in doctor
+      description: Retrieves a list of all appointments for the authenticated doctor, including patient details.
+      tags: [Doctor]
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/doctor/appointments/{id}:
+    put:
+      summary: Update appointment status
+      description: Updates the status of an appointment (confirmed, cancelled, missed). Missed appointments are auto-rescheduled.
+      tags: [Doctor]
+      security:
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Appointment ID
+          example: 682823d9be0320e447bf7992
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAppointmentStatusRequest'
+      responses:
+        '200':
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Appointment updated
+        '400':
+          description: Invalid status or appointment ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/patient/book:
+    post:
+      summary: Book an appointment
+      description: Allows a patient to book an appointment with a doctor. Sends an OTP to the patient's email for verification.
+      tags: [Patient]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookAppointmentRequest'
+      responses:
+        '200':
+          description: OTP sent for verification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: OTP sent to your email. Please verify to confirm the appointment.
+        '400':
+          description: Invalid request data or slot unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Doctor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/patient/verify-otp:
+    post:
+      summary: Verify OTP and confirm appointment
+      description: Verifies the OTP sent to the patient's email and confirms the appointment if valid.
+      tags: [Patient]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOTPRequest'
+      responses:
+        '200':
+          description: Appointment confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Appointment booked
+                  tokenNumber:
+                    type: number
+                    example: 1234
+        '400':
+          description: Invalid or expired OTP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Doctor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/admin/approve-doctor/{id}:
+    put:
+      summary: Approve a doctor
+      description: Allows an admin to approve a doctor's account, enabling login and clinic setup.
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Doctor ID
+          example: 682823d9be0320e447bf7990
+      responses:
+        '200':
+          description: Doctor approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Doctor approved
+        '400':
+          description: Invalid doctor ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized (not an admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/admin/analytics:
+    get:
+      summary: Get system analytics
+      description: Retrieves analytics for the system, including total doctors, appointments, and active subscriptions.
+      tags: [Admin]
+      security:
+        - CookieAuth: []
+      responses:
+        '200':
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsResponse'
+        '401':
+          description: Unauthorized (not an admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Doctor
+    description: Operations related to doctors (registration, login, clinic setup, appointment management)
+  - name: Patient
+    description: Operations for patients (booking appointments, OTP verification)
+  - name: Admin
+    description: Administrative operations (approving doctors, viewing analytics)

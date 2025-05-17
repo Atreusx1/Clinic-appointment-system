@@ -1,0 +1,36 @@
+.container {
+  @apply max-w-4xl mx-auto bg-white p-6 rounded shadow;
+}
+
+.title {
+  @apply text-2xl font-bold mb-4 text-center;
+}
+
+.table {
+  @apply w-full border-collapse;
+}
+
+.table th,
+.table td {
+  @apply border p-2 text-left;
+}
+
+.table th {
+  @apply bg-gray-100 font-semibold;
+}
+
+.select {
+  @apply border p-1 rounded;
+}
+
+.loading {
+  @apply text-center text-lg;
+}
+
+.error {
+  @apply text-red-500 text-center;
+}
+
+.empty {
+  @apply text-center text-lg;
+}

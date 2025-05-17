@@ -1,0 +1,23 @@
+.navbar {
+  @apply bg-blue-600 text-white p-4 flex justify-between items-center;
+}
+
+.logo a {
+  @apply text-2xl font-bold;
+}
+
+.navLinks {
+  @apply flex space-x-4 items-center;
+}
+
+.navLinks li a {
+  @apply hover:text-blue-200;
+}
+
+.active {
+  @apply text-blue-200 underline;
+}
+
+.logout {
+  @apply bg-red-500 hover:bg-red-600 px-3 py-1 rounded;
+}

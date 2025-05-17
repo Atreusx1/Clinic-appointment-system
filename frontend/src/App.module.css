@@ -1,0 +1,7 @@
+.app {
+  @apply min-h-screen flex flex-col;
+}
+
+.main {
+  @apply flex-grow container mx-auto p-4;
+}
